@@ -1,0 +1,169 @@
+---
+Title: GDAA 1001 Project#1 "ETL Pipeline for Geospatial Data Analysis"
+
+Author :Christian Kwaku Akpanya: "Prepared for Geospatial Data Analytics Exercise"
+---
+
+## Introduction
+
+This R Notebook demonstrates a complete ETL (Extract, Transform, Load) pipeline for geospatial data analysis. The dataset, containing information on healthcare facilities in Canada, is processed to enable further spatial and statistical analysis.
+
+### Objectives
+
+-   Extract the dataset from a local file.
+-   Transform the data by cleaning and preparing it for analysis.
+-   Load the cleaned dataset into a local file or database.
+-   Generate geospatial visualizations to gain insights.
+
+------------------------------------------------------------------------
+
+## Step 1: Setup and Load Libraries
+
+```{r setup, include=TRUE}
+# Load necessary libraries
+library(dplyr)       # For data manipulation
+library(readr)       # For reading CSV files
+library(ggplot2)     # For visualization
+library(DBI)         # For database connection
+library(RSQLite)     # SQLite database backend
+```
+
+------------------------------------------------------------------------
+
+## Step 2: Extract Data
+
+Load the dataset from the local directory.
+
+```{r extract-data}
+# Define the file path
+file_path <- "data/odhf_v1.1.csv"
+
+# Load the dataset
+df <- read_csv("C:/GDAA_Project1/Data/ODHF_v1.1/odhf_v1.1.csv", locale = locale(encoding = "latin1"))
+
+
+
+
+
+# Display the first few rows
+head(df)
+```
+
+------------------------------------------------------------------------
+
+## Step 3: Transform Data
+
+Clean and prepare the dataset for analysis.
+
+```{r transform-data}
+# Inspect the dataset structure
+glimpse(df)
+
+# Handle missing values and select relevant columns
+df_clean <- df %>%
+  filter(!is.na(latitude) & !is.na(longitude)) %>%  # Remove rows without geospatial data
+  mutate(
+    facility_type = case_when(
+      odhf_facility_type == "Hospitals" ~ "Hospital",
+      odhf_facility_type == "Ambulatory health care services" ~ "Clinic",
+      TRUE ~ "Other"
+    ),
+    full_address = paste(street_no, street_name, city, province, postal_code, sep = ", ")
+  ) %>%
+  select(facility_name, facility_type, full_address, latitude, longitude)
+
+# Display the cleaned dataset
+head(df_clean)
+```
+
+------------------------------------------------------------------------
+
+## Step 4: Load Data
+
+Save the transformed dataset into a SQLite database.
+
+```{r load-data}
+# Connect to a SQLite database (or create it)
+conn <- dbConnect(SQLite(), "data/healthcare_facilities.db")
+
+# Write the cleaned data to the database
+dbWriteTable(conn, "facilities", df_clean, overwrite = TRUE)
+
+# Confirm data has been loaded
+dbListTables(conn)
+
+# Disconnect from the database
+dbDisconnect(conn)
+```
+
+------------------------------------------------------------------------
+
+## Step 5: Visualize Data
+
+Generate geospatial visualizations.
+
+```{r visualize-data}
+# Plot the distribution of facilities by type
+ggplot(df_clean, aes(x = facility_type)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Distribution of Healthcare Facilities by Type")
+
+# Plot facilities on a map (requires latitude and longitude)
+ggplot(df_clean, aes(x = longitude, y = latitude, color = facility_type)) +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Geospatial Distribution of Healthcare Facilities")
+```
+
+------------------------------------------------------------------------
+
+## Conclusion
+
+This R Notebook demonstrates a complete ETL pipeline for healthcare facility data. The pipeline ensures the data is clean, well-structured, and ready for further analysis or integration into a geospatial database.
+
+Save df_clean as a CSV File
+
+```{r}
+# Ensure the data folder exists
+dir.create("data", showWarnings = FALSE)
+
+# Save the cleaned dataset as a CSV file
+write_csv(df_clean, "data/df_clean.csv")
+
+```
+
+Verify the Saved File
+
+confirm the file exists in the folder:
+
+```{r}
+file.exists("data/df_clean.csv")  # Should return TRUE
+
+```
+
+Load the CSV and Save to SQLite
+
+Loading it into a SQLite database:
+
+```{r}
+library(DBI)
+library(RSQLite)
+library(readr)
+
+# Read the saved CSV file
+df_clean <- read_csv("data/df_clean.csv")
+
+# Connect to SQLite database
+conn <- dbConnect(SQLite(), "data/healthcare_facilities.db")
+
+# Write the cleaned data to the database
+dbWriteTable(conn, "facilities", df_clean, overwrite = TRUE)
+
+# Verify the table in the database
+dbListTables(conn)
+
+# Disconnect from the database
+dbDisconnect(conn)
+
+```

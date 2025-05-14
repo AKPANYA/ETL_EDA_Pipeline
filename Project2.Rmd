@@ -1,0 +1,285 @@
+## GDAA 1001 -- Fundamentals of Geospatial Data Analytics
+
+## Project #2
+
+## 
+Title:       Exploratory Data Analysis (EDA)
+
+## Author:    Christian Akpanya
+
+## Date: November  8th 2024
+
+## 
+Introduction
+
+#### This document presents an exploratory data analysis (EDA) of the selected data set.  The data set was originally pre processed  in an ETL  project. The analysis aims to uncover patterns, trends, and relationships in the data to guide further modeling or decision-making processes.
+
+## Load Libraries and Data
+
+```{r setup, include=TRUE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(GGally)
+
+# Load the dataset
+data <- read.csv("C:\\GDAA\\Project2\\data\\processed_data\\df_clean.csv")
+
+# Display the structure of the dataset
+str(data)
+summary(data)
+```
+
+1.  <div>
+
+    ## Single Numeric Variable Analysis
+
+    </div>
+
+    ### Descriptive Statistics
+
+```{r}
+# Select numeric columns for analysis
+numeric_vars <- select_if(data, is.numeric)
+
+# Compute descriptive statistics
+stats <- numeric_vars %>%
+  summarise_all(list(
+    mean = mean,
+    median = median,
+    sd = sd,
+    IQR = IQR,
+    min = min,
+    max = max
+  ))
+
+# Print the computed statistics
+print(stats)
+
+
+```
+
+## Visualizations
+
+#### Density Plot
+
+```{r}
+ggplot(data, aes(x = numeric_vars[[1]])) +
+  geom_density(fill = "blue", alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Density Plot", x = "Variable", y = "Density")
+
+```
+
+### Histogram
+
+```{r}
+ggplot(data, aes(x = numeric_vars[[1]])) +
+  geom_histogram(binwidth = 5, fill = "orange", color = "black") +
+  theme_minimal() +
+  labs(title = "Histogram", x = "Variable", y = "Frequency")
+
+```
+
+### Box Plot
+
+```{r}
+ggplot(data, aes(y = numeric_vars[[1]])) +
+  geom_boxplot(fill = "blue", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Box Plot", y = "Variable")
+
+```
+
+###  Correlation Analysis
+
+```{r}
+# Compute correlation matrix
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+print(cor_matrix)
+
+# Scatterplot matrix
+ggpairs(numeric_vars)
+
+```
+
+## Single Categorical Variable Analysis
+
+### Frequency and Proportion Counts
+
+```{r}
+# Select categorical columns for analysis
+categorical_vars <- select_if(data, is.factor)
+
+freq_table <- categorical_vars %>%
+  summarise_all(list(freq = ~length(.)))
+
+print(freq_table)
+
+
+```
+
+### Bar Plot
+
+```{r}
+categorical_vars <- select_if(data, is.factor)
+
+# Ensure there are categorical variables before plotting
+if (length(categorical_vars) > 0) {
+  ggplot(data, aes(x = categorical_vars[[1]])) +
+    geom_bar(fill = "green", alpha = 0.7) +
+    theme_minimal() +
+    labs(title = "Bar Plot", x = "Category", y = "Frequency")
+} else {
+  print("No categorical variables found in the dataset.")
+}
+data$facility_type <- as.factor(data$facility_type)
+
+
+ggplot(data, aes(x = facility_type)) +
+  geom_bar(fill = "green", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Bar Plot of Facility Types", x = "Facility Type", y = "Frequency")
+
+
+
+
+
+```
+
+##  Multiple Categorical Variable Analysis
+
+### Heatmap of Associations
+
+```{r}
+#Bin Latitude into Regions
+
+data$latitude_bin <- cut(
+  data$latitude,
+  breaks = 4,
+  labels = c("North", "Central North", "Central South", "South")
+)
+
+# Create a contingency table
+contingency_table <- table(data$facility_type, data$latitude_bin)
+print(contingency_table)
+
+
+# Heatmap visualization
+ggplot(as.data.frame(contingency_table), aes(x = Var1, y = Var2, fill = Freq)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "red") +
+  theme_minimal() +
+  labs(title = "Heatmap of Associations", x = "Variable 1", y = "Variable 2", fill = "Frequency")
+
+```
+
+### Frequency and Proportion Counts
+
+```{r}
+# Frequency and Proportion Counts for 'facility_type'
+facility_type_counts <- data %>%
+  count(facility_type) %>%
+  mutate(proportion = n / sum(n))
+
+print(facility_type_counts)
+
+```
+
+### Simple Bar Plot
+
+```{r}
+ggplot(data, aes(x = facility_type)) +
+  geom_bar(fill = "skyblue", alpha = 0.8) +
+  theme_minimal() +
+  labs(title = "Frequency of Facility Types", x = "Facility Type", y = "Count")
+
+```
+
+### Enhanced Bar Plots
+
+Overlay additional information by stacking bars for categories.
+
+used `latitude_bin` (created earlier) to show facility distribution across regions.
+
+```{r}
+# Create a binned version of latitude
+data$latitude_bin <- cut(
+  data$latitude,
+  breaks = 4, # Number of bins (e.g., 4 regions)
+  labels = c("North", "Central North", "Central South", "South")
+)
+
+# Verify the new column
+print(table(data$latitude_bin))
+
+# Stacked Bar Plot
+ggplot(data, aes(x = facility_type, fill = latitude_bin)) +
+  geom_bar(position = "stack", alpha = 0.8) +
+  theme_minimal() +
+  labs(title = "Stacked Bar Plot of Facility Types by Latitude Bin",
+       x = "Facility Type", y = "Count", fill = "Latitude Bin")
+
+```
+
+#### **Dodged Bar Plot**:
+
+Display the categories side by side for easier comparison.
+
+```{r}
+# Dodged Bar Plot
+ggplot(data, aes(x = facility_type, fill = latitude_bin)) +
+  geom_bar(position = "dodge", alpha = 0.8) +
+  theme_minimal() +
+  labs(title = "Dodged Bar Plot of Facility Types by Latitude Bin",
+       x = "Facility Type", y = "Count", fill = "Latitude Bin")
+
+
+```
+
+#### **Filled Bar Plot**:
+
+Show proportions instead of raw counts using the `position = "fill"` argument.
+
+```{r}
+# Filled Bar Plot
+ggplot(data, aes(x = facility_type, fill = latitude_bin)) +
+  geom_bar(position = "fill", alpha = 0.8) +
+  theme_minimal() +
+  labs(title = "Filled Bar Plot of Facility Types by Latitude Bin",
+       x = "Facility Type", y = "Proportion", fill = "Latitude Bin")
+
+```
+
+### Interpretation:
+
+-   The **simple bar plot** shows the overall distribution of facility types.
+
+-   The **stacked bar plot** helps visualize the distribution across latitude bins.
+
+-   The **dodged bar plot** makes it easier to compare categories side by side.
+
+-   The **filled bar plot** highlights proportions, providing insight into relative distributions.
+
+### **Correspondence Analysis**
+
+Perform correspondence analysis if deeper exploration is required.
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+# Perform correspondence analysis
+correspondence_result <- CA(contingency_table, graph = FALSE)
+
+# Visualize correspondence analysis
+fviz_ca_biplot(correspondence_result, repel = TRUE) +
+  labs(title = "Correspondence Analysis of Facility Types and Latitude Bins")
+
+
+```
+
+## Conclusion
+
+This EDA has identified key trends and relationships in the data-set. Insights from this analysis will guide subsequent modeling or decision-making processes.
